@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apparel Price Predictor - Test</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+    --text: #e4e6ef; --text2: #9296a8; --accent: #6c8cff;
+    --ok: #4ade80; --warn: #fbbf24; --err: #f87171;
+    --radius: 8px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: var(--bg); color: var(--text); min-height:100vh; }
+  .container { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 1.5rem; margin-bottom:4px; }
+  .subtitle { color: var(--text2); font-size:.85rem; margin-bottom:24px; }
+  .status { display:flex; gap:8px; align-items:center; margin-bottom:24px;
+            padding:10px 14px; border-radius:var(--radius); background:var(--surface);
+            font-size:.8rem; }
+  .status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .dot-ok { background:var(--ok); box-shadow:0 0 6px var(--ok); }
+  .dot-warn { background:var(--warn); box-shadow:0 0 6px var(--warn); }
+  .dot-err { background:var(--err); box-shadow:0 0 6px var(--err); }
+  .card { background:var(--surface); border:1px solid var(--border);
+          border-radius:var(--radius); padding:20px; margin-bottom:16px; }
+  .card h2 { font-size:1rem; margin-bottom:14px; }
+  .form-grid { display:grid; gap:14px; }
+  .form-group { display:flex; flex-direction:column; gap:4px; }
+  label { font-size:.8rem; color:var(--text2); }
+  input, textarea, select { background:var(--bg); color:var(--text);
+         border:1px solid var(--border); border-radius:6px;
+         padding:8px 10px; font-size:.9rem; font-family:inherit; }
+  textarea { resize:vertical; min-height:80px; }
+  input[type="file"] { padding:6px; }
+  input[type="file"]::file-selector-button { background:var(--accent);
+         color:#fff; border:none; border-radius:4px; padding:4px 12px;
+         margin-right:8px; cursor:pointer; font-size:.8rem; }
+  .btn { background:var(--accent); color:#fff; border:none; border-radius:6px;
+         padding:10px 20px; font-size:.9rem; cursor:pointer; width:100%;
+         font-weight:600; }
+  .btn:hover { opacity:.85; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .result { margin-top:16px; padding:16px; border-radius:var(--radius);
+            background:var(--bg); border:1px solid var(--border); }
+  .price { font-size:2rem; font-weight:700; color:var(--ok); }
+  .price-label { font-size:.75rem; color:var(--text2); }
+  .range { font-size:.85rem; color:var(--text2); margin-top:4px; }
+  .summary { margin-top:12px; display:grid; grid-template-columns:1fr 1fr;
+             gap:6px; font-size:.8rem; }
+  .summary-item { display:flex; justify-content:space-between; }
+  .summary-key { color:var(--text2); }
+  .warnings { margin-top:8px; }
+  .warning { font-size:.8rem; color:var(--warn); padding:2px 0; }
+  .error { color:var(--err); font-size:.85rem; margin-top:8px; }
+  .loading { display:flex; align-items:center; gap:8px; color:var(--text2);
+             font-size:.85rem; padding:12px 0; }
+  .spinner { width:16px; height:16px; border:2px solid var(--border);
+             border-top-color:var(--accent); border-radius:50%;
+             animation:spin .6s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg);} }
+  .tab-bar { display:flex; gap:0; margin-bottom:16px; }
+  .tab { padding:8px 16px; border:1px solid var(--border); background:var(--bg);
+         color:var(--text2); cursor:pointer; font-size:.8rem; }
+  .tab:first-child { border-radius:var(--radius) 0 0 var(--radius); }
+  .tab:last-child { border-radius:0 var(--radius) var(--radius) 0; }
+  .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .json { font-size:.75rem; color:var(--text2); white-space:pre-wrap;
+          word-break:break-all; max-height:300px; overflow-y:auto; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Apparel Price Predictor</h1>
+  <p class="subtitle">Multi-agent AI: Text + Visual + Context &rarr; Hype Engine &rarr; Price</p>
+
+  <div class="status" id="status-bar">
+    <span class="status-dot dot-warn" id="status-dot"></span>
+    <span id="status-text">Checking backend...</span>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('predict')">Predict</div>
+    <div class="tab" onclick="switchTab('endpoints')">Endpoints</div>
+  </div>
+
+  <!-- Predict Tab -->
+  <div id="tab-predict">
+    <div class="card">
+      <h2>Item Details</h2>
+      <div class="form-grid" id="predict-form">
+        <div class="form-group">
+          <label>Apparel Image (optional)</label>
+          <input type="file" id="image" accept="image/jpeg,image/png,image/webp">
+        </div>
+        <div class="form-group">
+          <label>Product Name (optional)</label>
+          <input type="text" id="name" placeholder="e.g. Nike Air Max 90">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="description" placeholder="Describe the item — condition, size, material, color..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Brand</label>
+          <select id="brand"><option value="">-- Loading brands --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Sub Category</label>
+          <select id="sub_category"><option value="">-- Loading categories --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Condition</label>
+          <select id="condition_id">
+            <option value="">-- Choose --</option>
+            <option value="1">1 - New</option>
+            <option value="2">2 - Used (like new)</option>
+            <option value="3">3 - Used (good)</option>
+            <option value="4">4 - Worn</option>
+            <option value="5">5 - Worn (poor)</option>
+          </select>
+        </div>
+        <button class="btn" id="submit-btn" onclick="predict()">Run Prediction</button>
+      </div>
+      <div id="result"></div>
+    </div>
+  </div>
+
+  <!-- Endpoints Tab -->
+  <div id="tab-endpoints" style="display:none">
+    <div class="card">
+      <h2>GET /api/health</h2>
+      <div class="json" id="health-json">Click to test</div>
+      <button class="btn" style="margin-top:8px" onclick="testHealth()">Test</button>
+    </div>
+    <div class="card">
+      <h2>GET /api/brands</h2>
+      <div class="json" id="brands-json">Click to test</div>
+      <button class="btn" style="margin-top:8px" onclick="testBrands()">Test</button>
+    </div>
+    <div class="card">
+      <h2>GET /api/categories</h2>
+      <div class="json" id="categories-json">Click to test</div>
+      <button class="btn" style="margin-top:8px" onclick="testCategories()">Test</button>
+    </div>
+    <div class="card">
+      <h2>GET /api/conditions</h2>
+      <div class="json" id="conditions-json">Click to test</div>
+      <button class="btn" style="margin-top:8px" onclick="testConditions()">Test</button>
+    </div>
+  </div>
+
+</div>
+<script>
+const API = '';
+
+async function checkHealth() {
+  try {
+    const r = await fetch(API + '/api/health');
+    const d = await r.json();
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    if (d.models_loaded) {
+      dot.className = 'status-dot dot-ok';
+      txt.textContent = `Backend OK — ${d.model_files_present.length} model files loaded` +
+        (d.image_agent_loaded ? ', image agent ready' : '');
+    } else {
+      dot.className = 'status-dot dot-warn';
+      txt.textContent = `Backend running, models NOT loaded. Files: [${d.model_files_present.join(', ') || 'none'}]`;
+    }
+    return d;
+  } catch (e) {
+    document.getElementById('status-dot').className = 'status-dot dot-err';
+    document.getElementById('status-text').textContent = 'Cannot reach backend. Is python3 run.py running?';
+  }
+}
+
+async function loadDropdowns() {
+  try {
+    const [br, cat] = await Promise.all([
+      fetch(API + '/api/brands'), fetch(API + '/api/categories')
+    ]);
+    const brands = await br.json(), categories = await cat.json();
+
+    const bSel = document.getElementById('brand');
+    bSel.innerHTML = '<option value="">-- Select brand --</option>';
+    brands.forEach(b => { const o = document.createElement('option'); o.value = b.brand; o.textContent = b.brand; bSel.appendChild(o); });
+
+    const cSel = document.getElementById('sub_category');
+    cSel.innerHTML = '<option value="">-- Select category --</option>';
+    categories.forEach(c => { const o = document.createElement('option'); o.value = c.category; o.textContent = c.category; cSel.appendChild(o); });
+  } catch (e) {
+    console.error('Failed to load dropdowns', e);
+  }
+}
+
+async function predict() {
+  const btn = document.getElementById('submit-btn');
+  const result = document.getElementById('result');
+  btn.disabled = true;
+  result.innerHTML = '<div class="loading"><span class="spinner"></span>Running agents...</div>';
+
+  try {
+    const form = new FormData();
+    const img = document.getElementById('image').files[0];
+    if (img) form.append('image', img);
+    form.append('product_name', document.getElementById('name').value);
+    form.append('description', document.getElementById('description').value);
+    form.append('brand', document.getElementById('brand').value);
+    form.append('sub_category', document.getElementById('sub_category').value);
+    const cid = document.getElementById('condition_id').value;
+    if (cid) form.append('condition_id', cid);
+
+    const r = await fetch(API + '/api/predict', { method: 'POST', body: form });
+    const d = await r.json();
+
+    if (!r.ok) {
+      result.innerHTML = `<div class="error">${d.detail || 'Unknown error'}</div>`;
+      return;
+    }
+
+    result.innerHTML = `
+      <div class="result">
+        <div class="price-label">Predicted Resale Price</div>
+        <div class="price">$${d.predicted_price}</div>
+        <div class="range">~$${d.confidence_low} – $${d.confidence_high}</div>
+        <div class="summary">
+          <div class="summary-item"><span class="summary-key">Brand</span><span>${d.input_summary.brand || '—'} ${d.input_summary.brand_known ? '✓' : '⚠'}</span></div>
+          <div class="summary-item"><span class="summary-key">Category</span><span>${d.input_summary.category || '—'} ${d.input_summary.category_known ? '✓' : '⚠'}</span></div>
+          <div class="summary-item"><span class="summary-key">Condition</span><span>${d.input_summary.condition || '—'}</span></div>
+          <div class="summary-item"><span class="summary-key">Image</span><span>${d.input_summary.image_provided ? '✓ Provided' : '✗ Fallback'}</span></div>
+          <div class="summary-item"><span class="summary-key">Name</span><span>${d.input_summary.product_name || '—'}</span></div>
+          <div class="summary-item"><span class="summary-key">Desc length</span><span>${d.input_summary.description_length} chars</span></div>
+        </div>
+        ${d.warnings.length ? '<div class="warnings">' + d.warnings.map(w => `<div class="warning">⚠ ${w}</div>`).join('') + '</div>' : ''}
+      </div>`;
+  } catch (e) {
+    result.innerHTML = `<div class="error">Request failed: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'predict' && i === 0) || (tab === 'endpoints' && i === 1));
+  });
+  document.getElementById('tab-predict').style.display = tab === 'predict' ? '' : 'none';
+  document.getElementById('tab-endpoints').style.display = tab === 'endpoints' ? '' : 'none';
+}
+
+async function testHealth() {
+  document.getElementById('health-json').textContent = JSON.stringify(await fetch(API+'/api/health').then(r=>r.json()), null, 2);
+}
+async function testBrands() {
+  document.getElementById('brands-json').textContent = JSON.stringify(await fetch(API+'/api/brands').then(r=>r.json()), null, 2);
+}
+async function testCategories() {
+  document.getElementById('categories-json').textContent = JSON.stringify(await fetch(API+'/api/categories').then(r=>r.json()), null, 2);
+}
+async function testConditions() {
+  document.getElementById('conditions-json').textContent = JSON.stringify(await fetch(API+'/api/conditions').then(r=>r.json()), null, 2);
+}
+
+checkHealth();
+loadDropdowns();
+</script>
+</body>
+</html>
